@@ -2,80 +2,37 @@ import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Set
 
 // Remember to rename these classes and interfaces!
 
-interface MyPluginSettings {
-	mySetting: string;
+function cssName(name: string) {
+	return 'my-commands_' + name;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
+interface MyCommandsPluginSettings {}
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+const DEFAULT_SETTINGS: MyCommandsPluginSettings = {}
+
+export default class MyCommandsPlugin extends Plugin {
+	settings: MyCommandsPluginSettings;
 
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
+		// new-version-of-the-file
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
+			id: 'new-version-of-the-file',
+			name: 'Create the new version of the file',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
+				new PromptModal({
+					app: this.app,
+					title: 'New version name:',
+					initialValue: this.getNewVersionFileName(view.file.basename),
+					onSubmit: (result) => {
+						this.app.vault.copy(view.file, result).then((createdFile) => {
+							view.leaf.openFile(createdFile);
+						});
 					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
+				}).open();
 			}
 		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
 	onunload() {
@@ -89,49 +46,75 @@ export default class MyPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+
+	getNewVersionFileName(prevFileName: string) {
+		let result = prevFileName;
+		// PN mark
+		result = result.replace(/^\+/, '');
+
+		// Date time
+		result = result.replace(/^\d\d\d\d-\d\d-\d\d \d\d\d\d/, this.getNoteId());
+
+		// Version
+		result = result.replace(
+			/^(\d\d\d\d-\d\d-\d\d \d\d\d\d(?: - \w+)?)(?:( v)(\d+))?( - )/,
+			(all, prefix, vPrefix, version, suffix) => {
+				return prefix + (vPrefix || ' v') + String(Number(version || 1) + 1) + suffix;
+			}
+		);
+
+		return result;
+	}
+
+	getNoteId() {
+		const d = new Date();
+		return d.toISOString().replace(/T.+/, '')
+			+ ' '
+			+ String(d.getHours()).padStart(2, '0')
+			+ String(d.getMinutes()).padStart(2, '0');
+	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
+class PromptModal extends Modal {
+	title: string;
+	result: string;
+	onSubmit: (result: string) => void;
+
+	constructor({ title, initialValue = '', onSubmit }: { app: App; title: string; initialValue?: string; onSubmit: (result: string) => void }) {
 		super(app);
+		this.title = title;
+		this.result = initialValue;
+		this.onSubmit = onSubmit;
 	}
 
 	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
+		const { contentEl } = this;
+
+		contentEl.createEl("h1", { text: this.title });
+
+		const editSetting = new Setting(contentEl)
+			.addText((text) => {
+				text.setValue(this.result);
+				text.onChange((value) => {
+					this.result = value
+				})
+			});
+		editSetting.infoEl.style.display = 'none';
+		editSetting.controlEl.addClass(cssName('wide-input'));
+
+		new Setting(contentEl)
+			.addButton((btn) =>
+				btn
+					.setButtonText("OK")
+					.setCta()
+					.onClick(() => {
+						this.close();
+						this.onSubmit(this.result);
+					}));
 	}
 
 	onClose() {
-		const {contentEl} = this;
+		let { contentEl } = this;
 		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
 	}
 }
