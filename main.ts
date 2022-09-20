@@ -18,6 +18,23 @@ export default class MyCommandsPlugin extends Plugin {
 
 		// new-version-of-the-file
 		this.addCommand({
+			id: 'new-file',
+			name: 'Create a new file',
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				new PromptModal({
+					app: this.app,
+					title: 'File name:',
+					initialValue: this.getNoteId() + ' - ',
+					onSubmit: async (result) => {
+						const createdFile = await this.app.vault.create(result + '.md', '');
+						await view.leaf.openFile(createdFile);
+					}
+				}).open();
+			}
+		});
+
+		// new-version-of-the-file
+		this.addCommand({
 			id: 'new-version-of-the-file',
 			name: 'Create the new version of the file',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
@@ -25,10 +42,9 @@ export default class MyCommandsPlugin extends Plugin {
 					app: this.app,
 					title: 'New version name:',
 					initialValue: this.getNewVersionFileName(view.file.basename),
-					onSubmit: (result) => {
-						this.app.vault.copy(view.file, result).then((createdFile) => {
-							view.leaf.openFile(createdFile);
-						});
+					onSubmit: async (result) => {
+						const createdFile = await this.app.vault.copy(view.file, `${result}.${view.file.extension}`);
+						await view.leaf.openFile(createdFile);
 					}
 				}).open();
 			}
