@@ -103,10 +103,19 @@ class PromptModal extends Modal {
 		this.onSubmit = onSubmit;
 	}
 
+	complete() {
+		this.close();
+		this.onSubmit(this.result);
+	}
+
 	onOpen() {
 		const { contentEl } = this;
 
 		contentEl.createEl("h1", { text: this.title });
+
+		const onSuccess = () => {
+
+		}
 
 		const editSetting = new Setting(contentEl)
 			.addText((text) => {
@@ -117,16 +126,18 @@ class PromptModal extends Modal {
 			});
 		editSetting.infoEl.style.display = 'none';
 		editSetting.controlEl.addClass(cssName('wide-input'));
+		editSetting.controlEl.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+				this.complete();
+			}
+		});
 
-		new Setting(contentEl)
+		const btnSetting = new Setting(contentEl)
 			.addButton((btn) =>
 				btn
 					.setButtonText("OK")
 					.setCta()
-					.onClick(() => {
-						this.close();
-						this.onSubmit(this.result);
-					}));
+					.onClick(() => this.complete()));
 	}
 
 	onClose() {
