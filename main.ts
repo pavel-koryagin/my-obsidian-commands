@@ -126,7 +126,7 @@ class PromptModal extends Modal {
 			});
 		editSetting.infoEl.style.display = 'none';
 		editSetting.controlEl.addClass(cssName('wide-input'));
-		editSetting.controlEl.addEventListener('keydown', (e) => {
+		editSetting.controlEl.addEventListener('keypress', (e) => {
 			if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
 				this.complete();
 			}
