@@ -84,7 +84,9 @@ export default class MyCommandsPlugin extends Plugin {
 
 	getNoteId() {
 		const d = new Date();
-		return d.toISOString().replace(/T.+/, '')
+		return d.getFullYear() + '-'
+			+ String(d.getMonth()).padStart(2, '0') + '-'
+			+ String(d.getDay()).padStart(2, '0')
 			+ ' '
 			+ String(d.getHours()).padStart(2, '0')
 			+ String(d.getMinutes()).padStart(2, '0');
